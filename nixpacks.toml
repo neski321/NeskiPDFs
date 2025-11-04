@@ -4,11 +4,11 @@ nixPkgs = ['nodejs-18_x', 'php81']
 [phases.install]
 dependsOn = ['setup']
 cmds = [
-  'php -r "copy(\'https://getcomposer.org/installer\', \'composer-setup.php\');"',
-  'php composer-setup.php --install-dir=/usr/local/bin --filename=composer',
-  'php -r "unlink(\'composer-setup.php\');"',
-  'chmod +x /usr/local/bin/composer || true',
-  'composer --version'
+  "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\"",
+  "php composer-setup.php --install-dir=/usr/local/bin --filename=composer",
+  "php -r \"unlink('composer-setup.php');\"",
+  "chmod +x /usr/local/bin/composer || true",
+  "composer --version"
 ]
 
 [phases.build]
