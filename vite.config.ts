@@ -42,7 +42,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:4032',
+        target: process.env.BACKEND_URL || 'http://127.0.0.1:4032',
         changeOrigin: true,
         secure: false,
       },
