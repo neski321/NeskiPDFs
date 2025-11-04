@@ -14,9 +14,9 @@ cd backend
 composer install --no-dev --optimize-autoloader --no-interaction
 
 echo "⚙️  Caching Laravel configuration..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+php artisan config:cache || echo "⚠️  Config cache failed (may need APP_KEY)"
+php artisan route:cache || echo "⚠️  Route cache failed"
+php artisan view:cache || echo "⚠️  View cache failed"
 
 echo "✅ Build completed successfully!"
 
