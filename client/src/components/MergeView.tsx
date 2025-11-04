@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { PDFFileCard } from "./PDFFileCard";
+import { PDFViewer } from "./PDFViewer";
 import { Button } from "@/components/ui/button";
-import { Combine, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Combine, Plus, Eye } from "lucide-react";
 import { downloadBlob } from "@/lib/pdfApi";
 
 interface PDFFile {
@@ -23,6 +25,7 @@ interface MergeViewProps {
 export function MergeView({ files, onAddMore, onDeleteFile, onMerge, onReorderFiles }: MergeViewProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [viewingFile, setViewingFile] = useState<PDFFile | null>(null);
 
   const handleDragStart = (id: string) => {
     setDraggedId(id);
@@ -95,8 +98,10 @@ export function MergeView({ files, onAddMore, onDeleteFile, onMerge, onReorderFi
               fileName={file.name}
               pageCount={file.pageCount}
               fileSize={file.size}
+              pdfFile={file.file}
               onDelete={() => onDeleteFile(file.id)}
-              onEdit={() => console.log('Edit', file.id)}
+              onEdit={() => setViewingFile(file)}
+              onView={() => setViewingFile(file)}
               onDownload={() => handleDownloadFile(file)}
               isDragging={draggedId === file.id}
             />
@@ -112,6 +117,30 @@ export function MergeView({ files, onAddMore, onDeleteFile, onMerge, onReorderFi
           </Button>
         </div>
       )}
+
+      {/* PDF Viewer Dialog */}
+      <Dialog open={!!viewingFile} onOpenChange={(open) => !open && setViewingFile(null)}>
+        <DialogContent className="max-w-6xl max-h-[90vh] h-[90vh] p-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
+            <DialogTitle>{viewingFile?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 px-6 pb-6 min-h-0 overflow-hidden">
+            {viewingFile && (
+              <div className="h-full">
+                <PDFViewer
+                  file={viewingFile.file}
+                  fileName={viewingFile.name}
+                  onDownload={() => {
+                    if (viewingFile) {
+                      handleDownloadFile(viewingFile);
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
