@@ -16,6 +16,7 @@ use App\Http\Controllers\PdfController;
 
 // PDF operations
 Route::post('/pdf/merge', [PdfController::class, 'merge']);
+Route::post('/pdf/append', [PdfController::class, 'appendPDFs']);
 Route::post('/pdf/metadata', [PdfController::class, 'metadata']);
 Route::post('/pdf/rotate', [PdfController::class, 'rotate']);
 Route::post('/pdf/delete-pages', [PdfController::class, 'deletePages']);

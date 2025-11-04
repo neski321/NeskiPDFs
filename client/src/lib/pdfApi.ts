@@ -16,6 +16,26 @@ export async function mergePDFs(files: File[]): Promise<Blob> {
   return response.blob();
 }
 
+export async function appendPDFs(mainFile: File, additionalFiles: File[]): Promise<Blob> {
+  const formData = new FormData();
+  formData.append('pdf', mainFile);
+  additionalFiles.forEach((file, index) => {
+    formData.append(`additionalPdfs[${index}]`, file);
+  });
+
+  const response = await fetch('/api/pdf/append', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to append PDFs');
+  }
+
+  return response.blob();
+}
+
 export async function getPDFMetadata(file: File): Promise<{ pageCount: number; fileName: string; fileSize: number }> {
   const formData = new FormData();
   formData.append('pdf', file);
