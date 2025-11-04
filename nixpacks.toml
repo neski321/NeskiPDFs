@@ -1,20 +1,9 @@
 [phases.setup]
 nixPkgs = ['nodejs-18_x', 'php81', 'composer']
 
-[phases.install]
-cmds = [
-  'npm ci',
-  'cd backend && composer install --no-dev --optimize-autoloader'
-]
-
 [phases.build]
-dependsOn = ['install']
-cmds = [
-  'npm run build',
-  'cd backend && php artisan config:cache',
-  'cd backend && php artisan route:cache',
-  'cd backend && php artisan view:cache'
-]
+dependsOn = ['setup']
+cmds = ['chmod +x build.sh && ./build.sh']
 
 [start]
 cmd = 'cd backend && php artisan serve --host=0.0.0.0 --port=$PORT'

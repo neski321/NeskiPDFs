@@ -60,12 +60,18 @@ php artisan key:generate --show
 
 ### 4. Build Configuration
 
-Railway will automatically detect the `nixpacks.toml` file and use it for building. The build process will:
+Railway will automatically detect the `nixpacks.toml` file and use it for building. The build process runs a single script (`build.sh`) that executes:
 
-1. Install Node.js dependencies
-2. Build the frontend with Vite
+1. Install Node.js dependencies (`npm ci`)
+2. Build the frontend with Vite (`npm run build`)
 3. Install PHP dependencies with Composer
-4. Cache Laravel configuration
+4. Cache Laravel configuration (config, routes, views)
+
+**Everything is automated!** Railway will automatically:
+- Detect your project structure
+- Install Node.js 18 and PHP 8.1
+- Run the build script
+- Start your application
 
 ### 5. Start Command
 

@@ -9,6 +9,7 @@
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" --names \"backend,frontend\" --prefix-colors \"cyan,magenta\"",
     "build": "vite build",
     "build:production": "vite build",
+    "build:railway": "chmod +x build.sh && ./build.sh",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
