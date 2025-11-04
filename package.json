@@ -8,6 +8,7 @@
     "dev:backend": "cd backend && php artisan serve --port=4032",
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" --names \"backend,frontend\" --prefix-colors \"cyan,magenta\"",
     "build": "vite build",
+    "build:production": "vite build",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
