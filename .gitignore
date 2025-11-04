@@ -8,3 +8,7 @@ LARAVEL_SETUP.md
 backend/QUICK_START.md
 README_DEV.md
 SETUP_INSTRUCTIONS.md
+
+# Laravel cache files (contain sensitive config data)
+backend/bootstrap/cache/*.php
+!backend/bootstrap/cache/.gitignore
