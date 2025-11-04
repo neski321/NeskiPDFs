@@ -272,12 +272,6 @@ export function PDFTextEditor({ file, pageNumber, isOpen, onClose, onSave }: PDF
                   onClick={() => {
                     const newScale = Math.max(0.5, scale - 0.1);
                     setScale(newScale);
-                    // Re-render after scale change
-                    setTimeout(() => {
-                      if (canvasRef.current && fileUrlRef.current && !loading) {
-                        renderTextOverlays();
-                      }
-                    }, 100);
                   }}
                   title="Zoom out"
                 >
@@ -292,12 +286,6 @@ export function PDFTextEditor({ file, pageNumber, isOpen, onClose, onSave }: PDF
                   onClick={() => {
                     const newScale = Math.min(3, scale + 0.1);
                     setScale(newScale);
-                    // Re-render after scale change
-                    setTimeout(() => {
-                      if (canvasRef.current && fileUrlRef.current && !loading) {
-                        renderTextOverlays();
-                      }
-                    }, 100);
                   }}
                   title="Zoom in"
                 >

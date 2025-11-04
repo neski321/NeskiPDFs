@@ -60,6 +60,65 @@ class PdfController extends Controller
     }
 
     /**
+     * Append additional PDFs to an existing PDF
+     */
+    public function appendPDFs(Request $request): \Illuminate\Http\Response|JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'pdf' => 'required|file|mimes:pdf|max:51200',
+            'additionalPdfs' => 'required|array|min:1|max:20',
+            'additionalPdfs.*' => 'required|file|mimes:pdf|max:51200',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => 'PDF file and at least one additional PDF are required'
+            ], 400);
+        }
+
+        try {
+            $mainFile = $request->file('pdf');
+            $additionalFiles = $request->file('additionalPdfs');
+            
+            $pdf = new Fpdi();
+            
+            // First, add all pages from the main PDF
+            $mainPageCount = $pdf->setSourceFile($mainFile->getRealPath());
+            for ($pageNo = 1; $pageNo <= $mainPageCount; $pageNo++) {
+                $templateId = $pdf->importPage($pageNo);
+                $size = $pdf->getTemplateSize($templateId);
+                $pdf->AddPage($size['orientation'] === 'L' ? 'L' : 'P', [$size['width'], $size['height']]);
+                $pdf->useTemplate($templateId);
+            }
+            
+            // Then, append pages from additional PDFs
+            foreach ($additionalFiles as $file) {
+                $additionalPageCount = $pdf->setSourceFile($file->getRealPath());
+                
+                for ($pageNo = 1; $pageNo <= $additionalPageCount; $pageNo++) {
+                    $templateId = $pdf->importPage($pageNo);
+                    $size = $pdf->getTemplateSize($templateId);
+                    $pdf->AddPage($size['orientation'] === 'L' ? 'L' : 'P', [$size['width'], $size['height']]);
+                    $pdf->useTemplate($templateId);
+                }
+            }
+
+            $pdfContent = $pdf->Output('S');
+            
+            return response($pdfContent)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'attachment; filename="merged.pdf"');
+            
+        } catch (\Exception $e) {
+            \Log::error('Error appending PDFs: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to append PDFs',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get PDF metadata (page count, file name, file size)
      */
     public function metadata(Request $request): JsonResponse
@@ -276,22 +335,61 @@ class PdfController extends Controller
                 ], 400);
             }
 
-            $sourcePdf = new Fpdi();
-            $pageCount = $sourcePdf->setSourceFile($file->getRealPath());
-
+            // Use the same FPDI instance for both importing and output
+            // Template IDs are only valid for the instance that imported them
             $pdf = new Fpdi();
+            $pageCount = $pdf->setSourceFile($file->getRealPath());
 
-            foreach ($pageOrder as $pageIndex) {
-                $pageNo = $pageIndex + 1; // Convert to 1-based page number
-                
+            // Validate that all requested pages exist
+            foreach ($pageOrder as $pageNumber) {
+                $pageNo = (int) $pageNumber;
                 if ($pageNo < 1 || $pageNo > $pageCount) {
-                    continue; // Skip invalid page indices
+                    return response()->json([
+                        'error' => "Invalid page number: {$pageNo}. PDF has {$pageCount} pages.",
+                        'pageOrder' => $pageOrder,
+                        'pageCount' => $pageCount
+                    ], 400);
                 }
+            }
 
-                $templateId = $sourcePdf->importPage($pageNo);
-                $size = $sourcePdf->getTemplateSize($templateId);
+            // Validate that we have all pages (no duplicates, no missing pages)
+            $uniquePages = array_unique($pageOrder);
+            if (count($uniquePages) !== count($pageOrder)) {
+                return response()->json([
+                    'error' => 'Duplicate page numbers in reorder request',
+                    'pageOrder' => $pageOrder
+                ], 400);
+            }
+
+            if (count($pageOrder) !== $pageCount) {
+                return response()->json([
+                    'error' => "Page count mismatch. Expected {$pageCount} pages, got " . count($pageOrder),
+                    'pageOrder' => $pageOrder,
+                    'pageCount' => $pageCount
+                ], 400);
+            }
+
+            // pageOrder is an array of 1-indexed page numbers (e.g., [1, 2, 3])
+            foreach ($pageOrder as $pageNumber) {
+                $pageNo = (int) $pageNumber; // Already 1-indexed
                 
+                // Import the page - this must be done on the same instance that will use it
+                $templateId = $pdf->importPage($pageNo);
+                
+                if (!$templateId) {
+                    throw new \Exception("Failed to import page {$pageNo} from source PDF");
+                }
+                
+                $size = $pdf->getTemplateSize($templateId);
+                
+                if (!$size || !isset($size['width']) || !isset($size['height'])) {
+                    throw new \Exception("Failed to get size for page {$pageNo}");
+                }
+                
+                // Add page to new PDF
                 $pdf->AddPage($size['orientation'] === 'L' ? 'L' : 'P', [$size['width'], $size['height']]);
+                
+                // Use the template on the new page
                 $pdf->useTemplate($templateId);
             }
 
