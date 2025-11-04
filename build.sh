@@ -11,7 +11,12 @@ npm run build
 
 echo "📦 Installing PHP dependencies..."
 cd backend
-composer install --no-dev --optimize-autoloader --no-interaction
+# Use --ignore-platform-reqs to skip packages that require missing extensions
+# This allows the build to succeed even if spatie/pdf-to-image can't install (requires ext-imagick)
+composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs || {
+  echo "⚠️  Composer install with --ignore-platform-reqs failed, trying without it..."
+  composer install --no-dev --optimize-autoloader --no-interaction
+}
 
 echo "⚙️  Caching Laravel configuration..."
 php artisan config:cache || echo "⚠️  Config cache failed (may need APP_KEY)"
