@@ -14,7 +14,7 @@ cmds = [
 
 [phases.build]
 dependsOn = ['install']
-cmds = ['chmod +x build.sh && ./build.sh']
+cmds = ['export PATH="/usr/local/bin:$PATH" && chmod +x build.sh && ./build.sh']
 
 [start]
 cmd = 'cd backend && php artisan serve --host=0.0.0.0 --port=$PORT'
