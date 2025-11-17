@@ -1,12 +1,10 @@
-[providers]
-node = "20"
-
 [phases.setup]
-nixPkgs = ['nodejs', 'php81']
+nixPkgs = ['php81']
 
 [phases.install]
 dependsOn = ['setup']
 cmds = [
+  "bash -c 'NODE_VERSION=20.18.0 && curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz -o /tmp/node.tar.xz && tar -xJf /tmp/node.tar.xz -C /tmp && cp -r /tmp/node-v${NODE_VERSION}-linux-x64/* /usr/local/ && rm -rf /tmp/node-v${NODE_VERSION}-linux-x64 /tmp/node.tar.xz && export PATH=/usr/local/bin:$PATH && node --version'",
   "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\"",
   "php composer-setup.php",
   "php -r \"unlink('composer-setup.php');\"",
