@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.16.0"
+  },
   "scripts": {
     "dev:frontend": "vite",
     "dev:backend": "cd backend && php artisan serve --port=4032",
