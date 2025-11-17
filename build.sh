@@ -3,6 +3,23 @@ set -e
 
 echo "🚀 Starting Railway build process..."
 
+# Ensure Node.js is in PATH (it should be installed in /usr/local during install phase)
+export PATH="/usr/local/bin:$PATH"
+
+# Verify Node.js is available
+if ! command -v node >/dev/null 2>&1; then
+  echo "⚠️  Node.js not found in PATH, installing Node.js 20..."
+  NODE_VERSION=20.18.0
+  curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz -o /tmp/node.tar.xz
+  tar -xJf /tmp/node.tar.xz -C /tmp
+  cp -r /tmp/node-v${NODE_VERSION}-linux-x64/* /usr/local/
+  rm -rf /tmp/node-v${NODE_VERSION}-linux-x64 /tmp/node.tar.xz
+  export PATH="/usr/local/bin:$PATH"
+fi
+
+echo "📦 Node.js version: $(node --version)"
+echo "📦 npm version: $(npm --version)"
+
 echo "📦 Installing Node.js dependencies..."
 # Clear npm cache to avoid EBUSY errors in Docker/Railway
 # Try multiple times with delays if the directory is locked
