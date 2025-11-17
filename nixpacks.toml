@@ -1,0 +1,20 @@
+[phases.setup]
+nixPkgs = ['nodejs-18_x', 'php81']
+
+[phases.install]
+dependsOn = ['setup']
+cmds = [
+  "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\"",
+  "php composer-setup.php --install-dir=/usr/local/bin --filename=composer",
+  "php -r \"unlink('composer-setup.php');\"",
+  "chmod +x /usr/local/bin/composer || true",
+  "composer --version"
+]
+
+[phases.build]
+dependsOn = ['install']
+cmds = ['chmod +x build.sh && ./build.sh']
+
+[start]
+cmd = 'cd backend && php artisan serve --host=0.0.0.0 --port=$PORT'
+

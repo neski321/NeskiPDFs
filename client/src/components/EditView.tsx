@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { PageThumbnail } from "./PageThumbnail";
 import { ActionToolbar } from "./ActionToolbar";
 import { PDFViewer } from "./PDFViewer";
 import { PDFTextEditor } from "./PDFTextEditor";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Grid, Edit } from "lucide-react";
+import { ArrowLeft, Eye, Grid, Edit, FilePlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { rotatePDFPages, deletePDFPages, downloadBlob, getPDFMetadata } from "@/lib/pdfApi";
+import { rotatePDFPages, deletePDFPages, reorderPDFPages, downloadBlob, getPDFMetadata, appendPDFs } from "@/lib/pdfApi";
 
 interface Page {
   id: string;
@@ -28,6 +28,9 @@ export function EditView({ fileName, pages, onBack, pdfFile, onPDFUpdated }: Edi
   const [currentFile, setCurrentFile] = useState<File>(pdfFile);
   const [viewMode, setViewMode] = useState<"grid" | "viewer">("grid");
   const [editingPage, setEditingPage] = useState<number | null>(null);
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [dragOverPageId, setDragOverPageId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const togglePageSelection = (pageId: string) => {
@@ -163,6 +166,85 @@ export function EditView({ fileName, pages, onBack, pdfFile, onPDFUpdated }: Edi
     });
   };
 
+  const handleDragStart = (pageId: string) => {
+    setDraggedPageId(pageId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPageId(null);
+    setDragOverPageId(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, pageId: string) => {
+    e.preventDefault();
+    if (draggedPageId && draggedPageId !== pageId) {
+      setDragOverPageId(pageId);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropTargetId: string) => {
+    e.preventDefault();
+    
+    if (!draggedPageId || draggedPageId === dropTargetId) {
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+      return;
+    }
+
+    const draggedIndex = currentPages.findIndex(p => p.id === draggedPageId);
+    const dropIndex = currentPages.findIndex(p => p.id === dropTargetId);
+
+    if (draggedIndex === -1 || dropIndex === -1) {
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+      return;
+    }
+
+    // Reorder pages array - this gives us the new order
+    const newPages = [...currentPages];
+    const [draggedPage] = newPages.splice(draggedIndex, 1);
+    newPages.splice(dropIndex, 0, draggedPage);
+    
+    // Create new page order array - send ORIGINAL page numbers in new order
+    // The backend expects an array of original page numbers (1-indexed) in the new desired order
+    // e.g., if original page 3 is moved to position 1, the order would be [3, 1, 2]
+    // We use the pageNumber from each page object, which contains the ORIGINAL page number
+    const newPageOrder = newPages.map(p => p.pageNumber);
+    
+    // Update page numbers to reflect new positions (1-indexed) for display
+    const reorderedPages = newPages.map((page, index) => ({
+      ...page,
+      pageNumber: index + 1,
+    }));
+    setCurrentPages(reorderedPages);
+
+    // Apply reordering to PDF via backend
+    setIsProcessing(true);
+    try {
+      const blob = await reorderPDFPages(currentFile, newPageOrder);
+      const newFileName = `${fileName.replace('.pdf', '')}_reordered.pdf`;
+      await updateFileState(blob, newFileName);
+      downloadBlob(blob, newFileName);
+      
+      toast({
+        title: "Success!",
+        description: "Pages reordered successfully",
+      });
+    } catch (error) {
+      // Revert to original order on error
+      setCurrentPages(pages);
+      toast({
+        title: "Reordering failed",
+        description: "Failed to reorder PDF pages",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      setDraggedPageId(null);
+      setDragOverPageId(null);
+    }
+  };
+
   const handleEditText = (pageNumber: number) => {
     setEditingPage(pageNumber);
   };
@@ -193,6 +275,51 @@ export function EditView({ fileName, pages, onBack, pdfFile, onPDFUpdated }: Edi
     }
   };
 
+  const handleAddPDFs = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const additionalFiles = Array.from(files).filter(file => file.type === 'application/pdf');
+    
+    if (additionalFiles.length === 0) {
+      toast({
+        title: "Invalid files",
+        description: "Please select PDF files only",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const blob = await appendPDFs(currentFile, additionalFiles);
+      const newFileName = `${fileName.replace('.pdf', '')}_merged.pdf`;
+      await updateFileState(blob, newFileName);
+      
+      toast({
+        title: "Success!",
+        description: `Added ${additionalFiles.length} PDF file(s) to the document`,
+      });
+    } catch (error) {
+      console.error('Error appending PDFs:', error);
+      toast({
+        title: "Failed to add PDFs",
+        description: error instanceof Error ? error.message : "Failed to append PDFs",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -209,13 +336,22 @@ export function EditView({ fileName, pages, onBack, pdfFile, onPDFUpdated }: Edi
             <h2 className="text-2xl font-semibold">{fileName}</h2>
             <p className="text-muted-foreground mt-1">
               {viewMode === "grid" 
-                ? "Select pages to rotate, delete, or reorder"
+                ? "Drag pages to reorder, or select pages to rotate/delete"
                 : "View your PDF document"}
             </p>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAddPDFs}
+            disabled={isProcessing}
+          >
+            <FilePlus className="h-4 w-4 mr-2" />
+            Add PDFs
+          </Button>
           <Button
             variant={viewMode === "grid" ? "default" : "outline"}
             size="sm"
@@ -239,17 +375,33 @@ export function EditView({ fileName, pages, onBack, pdfFile, onPDFUpdated }: Edi
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-24">
             {currentPages.map((page) => (
-              <div key={page.id} className="relative group">
+              <div
+                key={page.id}
+                className="relative group"
+                draggable
+                onDragStart={() => handleDragStart(page.id)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => handleDragOver(e, page.id)}
+                onDrop={(e) => handleDrop(e, page.id)}
+              >
                 <PageThumbnail
                   pageNumber={page.pageNumber}
                   isSelected={selectedPages.has(page.id)}
                   onToggleSelect={() => togglePageSelection(page.id)}
                   pdfFile={currentFile}
+                  isDragging={draggedPageId === page.id}
+                />
+                <div
+                  className={`absolute inset-0 border-2 border-dashed rounded-lg transition-all ${
+                    dragOverPageId === page.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-transparent'
+                  }`}
                 />
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleEditText(page.pageNumber);
@@ -258,6 +410,9 @@ export function EditView({ fileName, pages, onBack, pdfFile, onPDFUpdated }: Edi
                 >
                   <Edit className="h-3 w-3" />
                 </Button>
+                {draggedPageId === page.id && (
+                  <div className="absolute inset-0 bg-primary/20 border-2 border-primary rounded-lg pointer-events-none" />
+                )}
               </div>
             ))}
           </div>
@@ -299,6 +454,15 @@ export function EditView({ fileName, pages, onBack, pdfFile, onPDFUpdated }: Edi
           onSave={handleTextSaved}
         />
       )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
     </div>
   );
 }
