@@ -24,15 +24,20 @@ echo "📦 Installing Node.js dependencies..."
 # Use a temporary cache directory to avoid conflicts with Railway's mounted cache
 # Railway mounts node_modules/.cache as a Docker cache volume, so we can't delete it
 export npm_config_cache=/tmp/.npm
-# Run npm ci with error handling
+# Use npm install instead of npm ci to avoid cache cleaning issues with mounted volumes
+# npm ci tries to clean node_modules/.cache which conflicts with Railway's cache mount
+# --prefer-offline uses cache when available, --no-audit skips security audit for speed
 set +e
-npm ci --prefer-offline --no-audit
+npm install --prefer-offline --no-audit --cache=/tmp/.npm
 NPM_EXIT_CODE=$?
 set -e
 if [ $NPM_EXIT_CODE -ne 0 ]; then
-  echo "⚠️  npm ci failed (exit code: $NPM_EXIT_CODE), trying with clean node_modules..."
-  rm -rf node_modules
-  npm ci --prefer-offline --no-audit
+  echo "⚠️  npm install failed (exit code: $NPM_EXIT_CODE), trying with clean node_modules..."
+  # Only remove node_modules contents, not the .cache directory (it's mounted by Railway)
+  if [ -d node_modules ]; then
+    find node_modules -mindepth 1 -maxdepth 1 ! -name '.cache' -exec rm -rf {} + 2>/dev/null || true
+  fi
+  npm install --prefer-offline --no-audit --cache=/tmp/.npm
 fi
 
 echo "🏗️  Building frontend..."
