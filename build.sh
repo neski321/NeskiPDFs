@@ -21,14 +21,10 @@ echo "📦 Node.js version: $(node --version)"
 echo "📦 npm version: $(npm --version)"
 
 echo "📦 Installing Node.js dependencies..."
-# Clear npm cache to avoid EBUSY errors in Docker/Railway
-# Try multiple times with delays if the directory is locked
-for i in 1 2 3; do
-  rm -rf node_modules/.cache 2>/dev/null && break || sleep 1
-done
-# Use a temporary cache directory to avoid EBUSY errors
+# Use a temporary cache directory to avoid conflicts with Railway's mounted cache
+# Railway mounts node_modules/.cache as a Docker cache volume, so we can't delete it
 export npm_config_cache=/tmp/.npm
-# Temporarily disable exit on error for npm ci
+# Run npm ci with error handling
 set +e
 npm ci --prefer-offline --no-audit
 NPM_EXIT_CODE=$?
