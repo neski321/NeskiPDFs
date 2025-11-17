@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ['nodejs-18_x', 'php81']
+nixPkgs = ['nodejs-20_x', 'php81']
 
 [phases.install]
 dependsOn = ['setup']

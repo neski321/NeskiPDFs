@@ -4,7 +4,23 @@ set -e
 echo "🚀 Starting Railway build process..."
 
 echo "📦 Installing Node.js dependencies..."
-npm ci
+# Clear npm cache to avoid EBUSY errors in Docker/Railway
+# Try multiple times with delays if the directory is locked
+for i in 1 2 3; do
+  rm -rf node_modules/.cache 2>/dev/null && break || sleep 1
+done
+# Use a temporary cache directory to avoid EBUSY errors
+export npm_config_cache=/tmp/.npm
+# Temporarily disable exit on error for npm ci
+set +e
+npm ci --prefer-offline --no-audit
+NPM_EXIT_CODE=$?
+set -e
+if [ $NPM_EXIT_CODE -ne 0 ]; then
+  echo "⚠️  npm ci failed (exit code: $NPM_EXIT_CODE), trying with clean node_modules..."
+  rm -rf node_modules
+  npm ci --prefer-offline --no-audit
+fi
 
 echo "🏗️  Building frontend..."
 npm run build
