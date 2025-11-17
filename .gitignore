@@ -12,3 +12,7 @@ SETUP_INSTRUCTIONS.md
 # Laravel cache files (contain sensitive config data)
 backend/bootstrap/cache/*.php
 !backend/bootstrap/cache/.gitignore
+
+# Composer (build artifact)
+composer.phar
+composer-setup.php
